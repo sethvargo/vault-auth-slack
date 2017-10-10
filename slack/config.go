@@ -12,23 +12,16 @@ type config struct {
 	// AccessToken is the OAuth access token to use for requests.
 	AccessToken string `json:"access_token" structs:"-"`
 
-	// ClientID is the client_id of the Slack application.
-	ClientID string `json:"client_id" structs:"client_id,omitempty"`
-
-	// ClientSecret is the client_secret of the Slack application.
-	ClientSecret string `json:"client_secret" structs:"-"`
-
-	// RedirectURL is the URL to redirect. This is used as an added layer of
-	// security, since Slack also has its own redirect url.
-	RedirectURL string `json:"redirect_url" structs:"redirect_url,omitempty"`
-
 	// Teams are the name of the team. Users must be a member of at least one of
 	// these teams in order to authenticate.
 	Teams []string `json:"teams" structs:"teams,omitempty"`
 
-	// Require2FA allows users that do not have two-factor authentication (2FA)
+	// AllowBotUsers allows bot users to authenticate. The default is false.
+	AllowBotUsers bool `json:"allow_bot_users" structs:"allow_bot_users"`
+
+	// AllowNon2FA allows users that do not have two-factor authentication (2FA)
 	// enabled in Slack to authenticate. The default is false.
-	Require2FA bool `json:"require_2fa" structs:"require_2fa"`
+	AllowNon2FA bool `json:"allow_non_2fa" structs:"allow_non_2fa"`
 
 	// AllowRestrictedUsers allows restricted users (AKA multi-channel guests) to
 	// authenticate. The default is false.

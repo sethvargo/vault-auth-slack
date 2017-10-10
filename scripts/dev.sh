@@ -54,6 +54,11 @@ path "secret/*" {
   capabilities = ["read"]
 }
 EOF
+vault write sys/policy/usergroup rules=-<<EOF
+path "*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+EOF
 
 echo "--> Building"
 go build -o "$SCRATCH/plugins/vault-auth-slack"
@@ -70,13 +75,11 @@ vault auth-enable -path=slack -plugin-name=slack-auth-plugin plugin
 echo "--> Configuring"
 vault write auth/slack/config \
   access_token="$SLACK_ACCESS_TOKEN" \
-  client_id="$SLACK_CLIENT_ID" \
-  client_secret="$SLACK_CLIENT_SECRET" \
   teams="$SLACK_TEAMS" \
   allow_restricted_users="true" \
   allow_ultra_restricted_users="false" \
   require_2fa="true" \
-  ttl=3600 \
+  ttl=12h \
   max_ttl=24h
 
 echo "    Reading out"
@@ -85,10 +88,7 @@ vault read auth/slack/config
 echo "--> Mapping policies"
 vault write auth/slack/map/users/sethvargo policy=user
 vault write auth/slack/map/groups/events policy=group
-vault write auth/slack/map/usergroups/vault policy=root
-
-echo "--> Auth URL"
-echo "https://slack.com/oauth/authorize?scope=identify&client_id=$SLACK_CLIENT_ID"
+vault write auth/slack/map/usergroups/vault policy=usergroup
 
 echo "==> Ready!"
 wait $!

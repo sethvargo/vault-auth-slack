@@ -34,17 +34,6 @@ func (b *backend) pathConfigWrite(req *logical.Request, data *framework.FieldDat
 		return errMissingField("access_token"), nil
 	}
 
-	// Get the client_id, secret, and redirect urls
-	clientID := data.Get("client_id").(string)
-	if clientID == "" {
-		return errMissingField("client_id"), nil
-	}
-	clientSecret := data.Get("client_secret").(string)
-	if clientSecret == "" {
-		return errMissingField("client_secret"), nil
-	}
-	redirectURL := data.Get("redirect_url").(string)
-
 	// Get the team
 	teams := data.Get("teams").([]string)
 	if len(teams) == 0 {
@@ -52,10 +41,11 @@ func (b *backend) pathConfigWrite(req *logical.Request, data *framework.FieldDat
 	}
 
 	// Get the tunable options
+	allowBotUsers := data.Get("allow_bot_users").(bool)
+	allowNon2FA := data.Get("allow_non_2fa").(bool)
 	allowRestrictedUsers := data.Get("allow_restricted_users").(bool)
 	allowUltraRestrictedUsers := data.Get("allow_ultra_restricted_users").(bool)
 	anyonePolicies := data.Get("anyone_policies").([]string)
-	require2FA := data.Get("require_2fa").(bool)
 
 	// Calculate TTLs, if supplied
 	ttl := time.Duration(data.Get("ttl").(int)) * time.Second
@@ -64,14 +54,12 @@ func (b *backend) pathConfigWrite(req *logical.Request, data *framework.FieldDat
 	// Built the entry
 	entry, err := logical.StorageEntryJSON("config", &config{
 		AccessToken:               accessToken,
-		ClientID:                  clientID,
-		ClientSecret:              clientSecret,
-		RedirectURL:               redirectURL,
 		Teams:                     teams,
+		AllowBotUsers:             allowBotUsers,
+		AllowNon2FA:               allowNon2FA,
 		AllowRestrictedUsers:      allowRestrictedUsers,
 		AllowUltraRestrictedUsers: allowUltraRestrictedUsers,
 		AnyonePolicies:            anyonePolicies,
-		Require2FA:                require2FA,
 		TTL:                       ttl,
 		MaxTTL:                    maxTTL,
 	})

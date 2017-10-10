@@ -36,7 +36,9 @@ that kinda thing.
   $ mv vault-auth-slack /etc/vault/plugins/vault-auth-slack
   ```
 
-1. Calculate the SHA256 of the plugin and register it in Vault's plugin catalog:
+1. Calculate the SHA256 of the plugin and register it in Vault's plugin catalog.
+If you are downloading the pre-compiled binary, it is highly recommended that
+you use the published checksums to verify integrity.
 
   ```sh
   $ export SHA256=$(shasum -a 256 "/etc/vault/plugins/vault-auth-slack" | cut -d' ' -f1)
@@ -57,14 +59,6 @@ team:
   can tune these values, but they are not covered in this guide.
 
   Click on "OAuth and Permissions" in the sidebar.
-
-  - [ ] Add a redirect URL that points to
-    `https://$VAULT_ADDR/v1/auth/slack/login/oauth`. If you mounted the Slack
-    auth method at a different path, use that instead. Note that the redirect
-    URL must be publicly accessible and it must be served over HTTPS. It is not
-    possible to use custom certificates.
-
-    Be sure to click "Save URLs".
 
   - [ ] Add the following scopes to your application:
 
@@ -92,18 +86,6 @@ team:
       $ export SLACK_ACCESS_TOKEN="xoxp-2164918114..."
       ```
 
-1. Get the client_id and client_secret:
-
-  - [ ] Click "Basic Information" in the sidebar
-
-  - [ ] In the "App Credentials" section, copy the **Client ID** and **Client
-    Secret** values
-
-      ```sh
-      $ export SLACK_CLIENT_ID="2164918114.249395258198"
-      $ export SLACK_CLIENT_SECRET="5950bfe46264d8485cb71b1d81551b75"
-      ```
-
 1. Mount the auth method:
 
   ```sh
@@ -117,27 +99,25 @@ team:
   ```sh
   $ vault write auth/slack/config \
       access_token="${SLACK_ACCESS_TOKEN}" \
-      client_id="${SLACK_CLIENT_ID}" \
-      client_secret=${SLACK_CLIENT_SECRET} \
-      teams="YourWorkspace"
+      teams="YourTeam"
   ```
 
   - `access_token` - _(required)_ oauth access token for the Slack application.
     This comes from Slack when you install the application into your team.
     This is used to communicate with Slack's API on your application's behalf.
 
-  - `client_id` - _(required)_ oauth client ID for the Slack application. This
-    comes from Slack when you register the application. This is used with the
-    `client_secret` to exchange a code for a user token.
+  - `teams` - _(required)_ comma-separated list of names or IDs of the teams
+    (workspaces) for which to allow authentication. Slack is currently in the
+    process of renaming "teams" to "workspaces", and it's confusing. We
+    apologize. Team names and IDs are case sensitive.
 
-  - `client_secret` - _(required)_ oauth client secret for the Slack
-    application. This comes from Slack when you register the application. This
-    is used with the `client_id` to exchange a code for a user token.
+  - `allow_bot_users` - _(default: false)_ allow bots to use their tokens to
+    authenticate. By default, bots are not allowed to authenticate.
 
-  - `team` - _(required)_ the name or ID of the team (workspace) for which to
-    allow authentication. Slack is currently in the process of renaming "teams"
-    to "workspaces", and it's confusing. We apologize. Team names and IDs are
-    case sensitive.
+  - `allow_non_2fa` - _(default: true)_ allow users which do not have 2FA/MFA
+    enabled on their Slack account to authenticate. By default, users must have
+    2FA enabled on their Slack account to authenticate to Vault. Users must
+    still be mapped to an appropriate policy to receive a token.
 
   - `allow_restricted_users` - _(default: false)_ allow multi-channel guests to
     authenticate. By default, restricted users will not be given a token, even
@@ -151,11 +131,6 @@ team:
     apply to everyone. If set, **any Slack member** will be able to authenticate
     to Vault and receive a token with these policies. By default, users must be
     a member of a group, usergroup, or mapped directly.
-
-  - `require_2fa` - _(default: true)_ allow users which do not have 2FA/MFA
-    enabled on their Slack account to authenticate. By default, users must have
-    2FA enabled on their Slack account to authenticate to Vault. Users must
-    still be mapped to an appropriate policy to receive a token.
 
   Additionally, you can tune the TTLs:
 
@@ -209,68 +184,44 @@ team:
     This accepts either a user display name ("sethvargo") or a user ID
     ("W012A3CDE"). User names and IDs are case sensitive.
 
-## 3-Leg OAuth Mode
+## Authenticating with a Personal Token
 
-In this mode, the user initiates a 3-legged OAuth process in Slack by
-authorizing a third-party application. The following considerations should be
-taken into account when choosing this auth method:
-
-- **Vault must be publicly accessible**. For added security, you can restrict
-  requests to Vault from Slack's IP ranges, and you can restrict Slack to send
-  messages to Vault's IP ranges.
-
-- By the nature of OAuth, a web browser is required. As such, this method does
-  not work in an automated fashion.
-
-### Setup
-
-1. Create a "Login with Slack" button or link with the `identify` scope:
-
-  ```text
-  https://slack.com/oauth/authorize?scope=identify&client_id=${SLACK_CLIENT_ID}
-  ```
-
-1. Users click on the link in the browser, authorize your app, receive their
-Vault token in the browser as a JSON payload.
-
-## Personal Token
-
-In this mode, the user generates their own personal OAuth token and uses it to
+To authenticate, the user generates a personal OAuth token and uses it to
 authenticate to Vault. The following considerations should be taken into account
 when choosing this auth method:
 
 - This method uses "legacy" tokens, which implies they will be deprecated at
   some point.
 
+- User personal access tokens have a lot of privilege, but this tool only uses
+  them for `auth.test` and identity.
+
 ### Setup
 
-1. The user creates their [personal access token][legacy-tokens] for the correct
-team.
+1. Create a [personal access token][legacy-tokens] for the correct team.
 
 1. Login to Vault with the personal access token:
 
   ```sh
-  $ vault write auth/slack/login access_token=xoxp-2164918114...
+  $ vault write auth/slack/login token=xoxp-2164918114...
   ```
 
   The response will be a standard auth response with some token metadata:
 
   ```text
-  Key                       	Value
-  ---                       	-----
-  token                     	cc4f206f-8895-11eb-4d5a-05d22167797c
-  token_accessor            	8cc51e79-b8c6-23f6-95ee-6e1309f15640
-  token_duration            	1h0m0s
-  token_renewable           	true
-  token_policies            	[default group user]
-  token_meta_slack_id       	"U02MVRNGK"
-  token_meta_slack_name     	"sethvargo"
-  token_meta_slack_real_name	"Seth Vargo"
+  Key                                Value
+  ---                                -----
+  token                              96d250b1-c4b4-2490-9dce-9c2fda6074b1
+  token_accessor                     5fd7a9d6-ce3a-10e4-b1cf-f9c3476eea50
+  token_duration                     12h0m0s
+  token_renewable                    true
+  token_policies                     [default ops everyone]
+  token_meta_slack_team_id           "T024UT03C"
+  token_meta_slack_team_name         "HashiCorp"
+  token_meta_slack_user_id           "U02MVRNGK"
+  token_meta_slack_user_name         "sethvargo"
+  token_meta_slack_user_real_name    "Seth Vargo"
   ```
-
-  Vault does not store the access token - it is only used to authenticate the
-  user using the `auth.test` API method.
-
 
 [legacy-tokens]: https://api.slack.com/custom-integrations/legacy-tokens
 

@@ -72,6 +72,21 @@ func Backend(c *logical.BackendConfig) *backend {
 		Paths: func() []*framework.Path {
 			var paths []*framework.Path
 
+			// auth/slack/info
+			paths = append(paths, &framework.Path{
+				Pattern:      "info",
+				HelpSynopsis: "Display information about the plugin",
+				HelpDescription: `
+
+Displays information about the plugin, such as the plugin version and where to
+get help.
+
+`,
+				Callbacks: map[logical.Operation]framework.OperationFunc{
+					logical.ReadOperation: b.pathInfoRead,
+				},
+			})
+
 			// auth/slack/map/groups/*
 			paths = append(paths, b.GroupsMap.Paths()...)
 
@@ -92,8 +107,6 @@ information, team, behavior configuration tunables, and TTLs. For example:
 
     $ vault write auth/slack/config \
         access_token="xoxp-2164918114..." \
-        client_id="2164918114.249395258198" \
-        client_secret="5950bfe46264d8485cb71b1d81551b75" \
         teams="HashiCorp"
 
 For more information and examples, please see the online documentation.
@@ -106,26 +119,23 @@ For more information and examples, please see the online documentation.
 						Description: "Slack OAuth access token for your Slack application.",
 					},
 
-					"client_id": &framework.FieldSchema{
-						Type:        framework.TypeString,
-						Description: "Slack client_id for your Slack application.",
-					},
-
-					"client_secret": &framework.FieldSchema{
-						Type:        framework.TypeString,
-						Description: "Slack client_secret for your Slack application.",
-					},
-
-					"redirect_url": &framework.FieldSchema{
-						Type:        framework.TypeString,
-						Description: "Slack redirect_url for your Slack application.",
-					},
-
 					"teams": &framework.FieldSchema{
 						Type: framework.TypeCommaStringSlice,
 						Description: "Comma-separated list of permitted Slack teams. The " +
 							"user must be a member of at least one of these teams to " +
 							"authenticate.",
+					},
+
+					"allow_bot_users": &framework.FieldSchema{
+						Type:        framework.TypeBool,
+						Description: "Allow bot users to authenticate.",
+					},
+
+					"allow_non_2fa": &framework.FieldSchema{
+						Type: framework.TypeBool,
+						Description: "Allow users to not have 2FA enabled on their Slack " +
+							"account to authenticate.",
+						Default: true,
 					},
 
 					"allow_restricted_users": &framework.FieldSchema{
@@ -144,13 +154,6 @@ For more information and examples, please see the online documentation.
 						Type: framework.TypeCommaStringSlice,
 						Description: "Comma-separated list of policies to apply to " +
 							"everyone, even unmapped users.",
-					},
-
-					"require_2fa": &framework.FieldSchema{
-						Type: framework.TypeBool,
-						Description: "Require users have 2FA enabled on their Slack " +
-							"account to authenticate.",
-						Default: true,
 					},
 
 					"ttl": &framework.FieldSchema{
@@ -190,27 +193,6 @@ then used to map the user to policies in Vault.
 				},
 				Callbacks: map[logical.Operation]framework.OperationFunc{
 					logical.UpdateOperation: b.pathAuthLogin,
-				},
-			})
-
-			// auth/slack/login/oauth
-			paths = append(paths, &framework.Path{
-				Pattern:      "login/oauth",
-				HelpSynopsis: "Authenticate using a 3-legged OAuth callback",
-				HelpDescription: `
-
-Accepts an OAuth callback from a "Login with Slack" request after the user
-authorizes your applicaton. It exchanges a temporary token for a user's OAuth
-token and then behaves exactly the same as /login using the resulting token for
-the user.
-
-The parameters are not documented here because they come directly from Slack.
-You should not invoke this endpoint yourself - it should be used only as a
-callback URL from an Slack user OAuth request.
-
-`,
-				Callbacks: map[logical.Operation]framework.OperationFunc{
-					logical.ReadOperation: b.pathAuthOAuth,
 				},
 			})
 
