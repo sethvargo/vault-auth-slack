@@ -75,12 +75,7 @@ vault auth-enable -path=slack -plugin-name=slack-auth-plugin plugin
 echo "--> Configuring"
 vault write auth/slack/config \
   access_token="$SLACK_ACCESS_TOKEN" \
-  teams="$SLACK_TEAMS" \
-  allow_restricted_users="true" \
-  allow_ultra_restricted_users="false" \
-  require_2fa="true" \
-  ttl=12h \
-  max_ttl=24h
+  teams="$SLACK_TEAMS"
 
 echo "    Reading out"
 vault read auth/slack/config

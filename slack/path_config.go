@@ -28,6 +28,11 @@ func (b *backend) pathConfigRead(req *logical.Request, data *framework.FieldData
 
 // pathConfigRead corresponds to POST auth/slack/config.
 func (b *backend) pathConfigWrite(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	// Validate we didn't get extraneous fields
+	if err := validateFields(req, data); err != nil {
+		return nil, logical.CodedError(422, err.Error())
+	}
+
 	// Get the access token
 	accessToken := data.Get("access_token").(string)
 	if accessToken == "" {

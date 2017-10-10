@@ -23,6 +23,11 @@ type verifyResp struct {
 // pathAuthLogin accepts a user's personal OAuth token and validates the user's
 // identity to generate a Vault token.
 func (b *backend) pathAuthLogin(req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	// Validate we didn't get extraneous fields
+	if err := validateFields(req, d); err != nil {
+		return nil, logical.CodedError(422, err.Error())
+	}
+
 	// Make sure we have a token
 	token := d.Get("token").(string)
 	if token == "" {
