@@ -1,5 +1,7 @@
 # Slack Auth Method for Vault
 
+[![Build Status](https://travis-ci.org/sethvargo/vault-auth-slack.svg?branch=master)](https://travis-ci.org/sethvargo/vault-auth-slack)
+
 The Vault Auth Slack method is a Vault auth method plugin for authenticating
 users via Slack. The plugin can run in multiple different "modes" depending on
 your desired user workflow and risk tolerance.
