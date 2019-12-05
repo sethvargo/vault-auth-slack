@@ -1,9 +1,11 @@
 package slack
 
 import (
+	"context"
 	"time"
 
-	"github.com/hashicorp/vault/logical"
+	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 )
 
@@ -11,6 +13,10 @@ import (
 type config struct {
 	// AccessToken is the OAuth access token to use for requests.
 	AccessToken string `json:"access_token" structs:"-"`
+
+	// Endpoint is the slack endpoint. This is only useful for testing or if you
+	// run your own Slack installation.
+	Endpoint string `json:"endpoint" structs:"endpoint"`
 
 	// Teams are the name of the team. Users must be a member of at least one of
 	// these teams in order to authenticate.
@@ -40,8 +46,8 @@ type config struct {
 }
 
 // Config parses and returns the configuration data from the storage backend.
-func (b *backend) Config(s logical.Storage) (*config, error) {
-	entry, err := s.Get("config")
+func (b *backend) Config(ctx context.Context, s logical.Storage) (*config, error) {
+	entry, err := s.Get(ctx, "config")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get config from storage")
 	}
@@ -55,4 +61,12 @@ func (b *backend) Config(s logical.Storage) (*config, error) {
 	}
 
 	return &result, nil
+}
+
+func OptionSlackEndpoint(u string) func(*slack.Client) {
+	return func(c *slack.Client) {
+		if u != "" {
+			slack.OptionAPIURL(u)(c)
+		}
+	}
 }

@@ -1,17 +1,17 @@
 package slack
 
 import (
-	log "github.com/mgutz/logxi/v1"
+	"context"
 
-	"github.com/hashicorp/vault/logical"
-	"github.com/hashicorp/vault/logical/framework"
+	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/pkg/errors"
 )
 
 // Factory creates a new usable instance of this auth method.
-func Factory(c *logical.BackendConfig) (logical.Backend, error) {
+func Factory(ctx context.Context, c *logical.BackendConfig) (logical.Backend, error) {
 	b := Backend(c)
-	if err := b.Setup(c); err != nil {
+	if err := b.Setup(ctx, c); err != nil {
 		return nil, errors.Wrapf(err, "failed to create factory")
 	}
 	return b, nil
@@ -20,7 +20,6 @@ func Factory(c *logical.BackendConfig) (logical.Backend, error) {
 // backend is the actual backend
 type backend struct {
 	*framework.Backend
-	logger log.Logger
 
 	GroupsMap     *framework.PolicyMap
 	UsergroupsMap *framework.PolicyMap
@@ -31,8 +30,6 @@ type backend struct {
 // and required callbacks.
 func Backend(c *logical.BackendConfig) *backend {
 	var b backend
-
-	b.logger = c.Logger
 
 	// GroupsMap maps private channels (like #team-ops) to a series of policies.
 	b.GroupsMap = &framework.PolicyMap{

@@ -1,17 +1,18 @@
 package slack
 
 import (
+	"context"
 	"time"
 
 	"github.com/fatih/structs"
-	"github.com/hashicorp/vault/logical"
-	"github.com/hashicorp/vault/logical/framework"
+	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/pkg/errors"
 )
 
 // pathConfigRead corresponds to READ auth/slack/config.
-func (b *backend) pathConfigRead(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := b.Config(req.Storage)
+func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	config, err := b.Config(ctx, req.Storage)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get configuration from storage")
 	}
@@ -27,7 +28,7 @@ func (b *backend) pathConfigRead(req *logical.Request, data *framework.FieldData
 }
 
 // pathConfigRead corresponds to POST auth/slack/config.
-func (b *backend) pathConfigWrite(req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	// Validate we didn't get extraneous fields
 	if err := validateFields(req, data); err != nil {
 		return nil, logical.CodedError(422, err.Error())
@@ -72,7 +73,7 @@ func (b *backend) pathConfigWrite(req *logical.Request, data *framework.FieldDat
 		return nil, errors.Wrapf(err, "failed to generate storage entry")
 	}
 
-	if err := req.Storage.Put(entry); err != nil {
+	if err := req.Storage.Put(ctx, entry); err != nil {
 		return nil, errors.Wrapf(err, "failed to write configuration to storage")
 	}
 	return nil, nil

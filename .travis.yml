@@ -1,16 +1,18 @@
-dist: trusty
-sudo: false
+dist: xenial
 
 language: go
 
-go:
-  - 1.9
-
-env:
-  - GOMAXPROCS=4
-
 branches:
   only:
-    - master
+  - master
 
-script: make test test-race
+go:
+- 1.13.x
+
+git:
+  depth: 1
+  quiet: true
+
+install: true
+
+script: make test

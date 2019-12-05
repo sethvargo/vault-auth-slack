@@ -1,16 +1,18 @@
 package slack
 
 import (
-	"github.com/hashicorp/vault/logical"
-	"github.com/hashicorp/vault/logical/framework"
-	"github.com/hashicorp/vault/version"
+	"context"
+
+	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/sethvargo/vault-auth-slack/version"
 )
 
 // pathInfoRead corresponds to READ auth/slack/info.
-func (b *backend) pathInfoRead(req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathInfoRead(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"commit":  version.GitCommit,
+			"name":    version.Name,
 			"version": version.Version,
 		},
 	}, nil

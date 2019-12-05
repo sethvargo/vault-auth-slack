@@ -1,12 +1,5 @@
 package version
 
-import "fmt"
-
-const Version = "0.0.2.dev"
-
-var (
-	Name      string
-	GitCommit string
-
-	HumanVersion = fmt.Sprintf("%s v%s (%s)", Name, Version, GitCommit)
-)
+const Name = "vault-auth-slack"
+const Version = "0.0.3"
+const HumanVersion = Name + " v" + Version

@@ -1,11 +1,12 @@
 package slack
 
 import (
+	"context"
 	"time"
 
-	"github.com/hashicorp/vault/helper/policyutil"
-	"github.com/hashicorp/vault/logical"
-	"github.com/hashicorp/vault/logical/framework"
+	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/policyutil"
+	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/nlopes/slack"
 	"github.com/pkg/errors"
 )
@@ -22,7 +23,7 @@ type verifyResp struct {
 
 // pathAuthLogin accepts a user's personal OAuth token and validates the user's
 // identity to generate a Vault token.
-func (b *backend) pathAuthLogin(req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathAuthLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	// Validate we didn't get extraneous fields
 	if err := validateFields(req, d); err != nil {
 		return nil, logical.CodedError(422, err.Error())
@@ -35,7 +36,7 @@ func (b *backend) pathAuthLogin(req *logical.Request, d *framework.FieldData) (*
 	}
 
 	// Verify the credentails
-	creds, err := b.verifyCreds(req, token)
+	creds, err := b.verifyCreds(ctx, req, token)
 	if err != nil {
 		if err, ok := err.(logical.HTTPCodedError); ok {
 			return nil, err
@@ -67,7 +68,7 @@ func (b *backend) pathAuthLogin(req *logical.Request, d *framework.FieldData) (*
 }
 
 // pathAuthRenew is used to renew authentication.
-func (b *backend) pathAuthRenew(req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathAuthRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	// Verify we received auth
 	if req.Auth == nil {
 		return nil, errors.New("request auth was nil")
@@ -84,7 +85,7 @@ func (b *backend) pathAuthRenew(req *logical.Request, d *framework.FieldData) (*
 	}
 
 	// Verify the credentails
-	creds, err := b.verifyCreds(req, token)
+	creds, err := b.verifyCreds(ctx, req, token)
 	if err != nil {
 		if err, ok := err.(logical.HTTPCodedError); ok {
 			return nil, err
@@ -99,18 +100,18 @@ func (b *backend) pathAuthRenew(req *logical.Request, d *framework.FieldData) (*
 	}
 
 	// Extend the lease
-	return framework.LeaseExtend(creds.ttl, creds.maxTTL, b.System())(req, d)
+	return framework.LeaseExtend(creds.ttl, creds.maxTTL, b.System())(ctx, req, d)
 }
 
 // verifyCreds verifies the given credentials.
-func (b *backend) verifyCreds(req *logical.Request, token string) (*verifyResp, error) {
-	config, err := b.Config(req.Storage)
+func (b *backend) verifyCreds(ctx context.Context, req *logical.Request, token string) (*verifyResp, error) {
+	config, err := b.Config(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the client
-	client := slack.New(token)
+	client := slack.New(token, OptionSlackEndpoint(config.Endpoint))
 
 	// Get self
 	ctx, cancel := newContext()
@@ -139,7 +140,7 @@ func (b *backend) verifyCreds(req *logical.Request, token string) (*verifyResp, 
 	}
 
 	// Create a new client using Vault's token to lookup more information
-	client = slack.New(config.AccessToken)
+	client = slack.New(config.AccessToken, OptionSlackEndpoint(config.Endpoint))
 
 	// Lookup more information about the user
 	ctx, cancel = newContext()
@@ -198,15 +199,15 @@ func (b *backend) verifyCreds(req *logical.Request, token string) (*verifyResp, 
 	userIDs := []string{user.ID, user.Name}
 
 	// Accumulate all policies
-	groupPolicies, err := b.GroupsMap.Policies(req.Storage, groupIDs...)
+	groupPolicies, err := b.GroupsMap.Policies(ctx, req.Storage, groupIDs...)
 	if err != nil {
 		return nil, errors.Wrap(err, "group policies")
 	}
-	usergroupPolicies, err := b.UsergroupsMap.Policies(req.Storage, usergroupIDs...)
+	usergroupPolicies, err := b.UsergroupsMap.Policies(ctx, req.Storage, usergroupIDs...)
 	if err != nil {
 		return nil, errors.Wrap(err, "usergroup policies")
 	}
-	userPolicies, err := b.UsersMap.Policies(req.Storage, userIDs...)
+	userPolicies, err := b.UsersMap.Policies(ctx, req.Storage, userIDs...)
 	if err != nil {
 		return nil, errors.Wrap(err, "user policies")
 	}
@@ -237,18 +238,12 @@ func (b *backend) verifyCreds(req *logical.Request, token string) (*verifyResp, 
 		return nil, logical.CodedError(403, "user has no mapped policies")
 	}
 
-	// Parse TTLs
-	ttl, maxTTL, err := b.SanitizeTTLStr(config.TTL.String(), config.MaxTTL.String())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to sanitize TTLs")
-	}
-
 	// Return the response
 	return &verifyResp{
 		policies: policies,
 		user:     user,
 		team:     team,
-		ttl:      ttl,
-		maxTTL:   maxTTL,
+		ttl:      config.TTL,
+		maxTTL:   config.MaxTTL,
 	}, nil
 }
